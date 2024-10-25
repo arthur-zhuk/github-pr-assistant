@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub PR Helper",
+  "version": "1.0",
+  "description": "Suggests comments on GitHub pull requests.",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://api.github.com/*",
+    "https://your-app.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/pull/*"],
+      "js": ["dist/content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_width": 380,
+    "default_height": 600
+  }
+}
