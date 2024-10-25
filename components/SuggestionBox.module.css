@@ -1,7 +1,6 @@
 .wrapper {
   width: 100%;
   min-width: 380px;
-  padding: 16px;
 }
 
 .container {
@@ -9,6 +8,8 @@
   border-radius: 6px;
   border: 1px solid #d0d7de;
   padding: 16px;
+  margin: 0;
+  height: 100%;
 }
 
 /* Target markdown elements with :global() */
@@ -89,16 +90,108 @@
     border-color: #30363d;
   }
 
+  .refreshButton {
+    color: #c9d1d9;
+    background-color: #21262d;
+    border-color: #30363d;
+  }
+
+  .refreshButton:hover {
+    background-color: #30363d;
+  }
+
   .suggestion :global(h3) {
+    color: #c9d1d9;
+    background: #161b22;
+    border-color: #30363d;
+  }
+
+  .suggestion :global(h4) {
+    color: #8b949e;
+    border-color: #30363d;
+  }
+
+  .suggestion :global(pre) {
+    background: #161b22;
+    border-color: #30363d;
+  }
+
+  .suggestion :global(pre code) {
+    color: #c9d1d9;
+  }
+
+  .suggestion :global(code):not(pre code) {
     background: #161b22;
     border-color: #30363d;
     color: #c9d1d9;
   }
 
-  .suggestion :global(pre),
-  .suggestion :global(code) {
-    background: #161b22;
+  .suggestion :global(p),
+  .suggestion :global(li) {
+    color: #c9d1d9;
+  }
+}
+
+.suggestion pre {
+  width: 100%;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  margin: 16px 0;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.suggestion pre code {
+  display: block;
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: transparent;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  white-space: pre;
+  border: none;
+}
+
+.suggestion p code {
+  display: inline;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #d0d7de;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  .suggestion pre {
+    background-color: #161b22;
+    border-color: #30363d;
+  }
+
+  .suggestion pre code {
+    color: #c9d1d9;
+  }
+
+  .suggestion p code {
+    background-color: #161b22;
     border-color: #30363d;
     color: #c9d1d9;
   }
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.content {
+  overflow-y: auto;
+  max-height: calc(600px - 80px);
 }

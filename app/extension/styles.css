@@ -1,0 +1,3 @@
+/* Import all CSS files here */
+@import "./global.css";
+@import "../../components/SuggestionBox.module.css";

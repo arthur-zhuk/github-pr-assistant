@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npm run build:popup",
+    "build": "npm run build:styles && npm run build:popup",
     "start": "next start",
     "lint": "next lint",
-    "build:content": "esbuild ./content.jsx --bundle --outfile=dist/content.js --platform=browser --loader:.css=css --bundle",
-    "build:popup": "esbuild ./app/extension/popup.jsx --bundle --outfile=dist/popup.js --platform=browser --loader:.css=css --bundle"
+    "build:content": "esbuild ./content.jsx --bundle --outfile=dist/content.js --platform=browser --loader:.css=css --loader:.module.css=local-css --bundle",
+    "build:styles": "esbuild app/extension/styles.css --bundle --outfile=dist/styles.css",
+    "build:popup": "esbuild ./app/extension/popup.jsx --bundle --outfile=dist/popup.js --platform=browser"
   },
   "dependencies": {
     "chrome-extension-options": "^0.1.6",
