@@ -7,72 +7,143 @@ import Settings from "./settings";
 
 const ExtensionPage: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsToken, setNeedsToken] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [token, setToken] = useState<string | null>(null);
 
-  const fetchSuggestions = async () => {
-    try {
+  // Load token on mount
+  useEffect(() => {
+    const loadToken = async () => {
       const { githubToken } = await chrome.storage.sync.get("githubToken");
+      if (githubToken) {
+        setToken(githubToken);
+      } else {
+        setShowSettings(true);
+      }
+    };
+    loadToken();
+  }, []);
 
-      if (!githubToken) {
-        setNeedsToken(true);
-        setLoading(false);
+  // Only fetch suggestions when we have a token
+  useEffect(() => {
+    if (token) {
+      setLoading(true);
+      fetchSuggestions();
+    }
+  }, [token]);
+
+  const handleTokenSave = async (newToken: string) => {
+    try {
+      const isValid = await validateGitHubToken(newToken);
+      if (!isValid) {
+        setError("Invalid GitHub token. Please check the token and try again.");
         return;
       }
 
+      await chrome.storage.sync.set({ githubToken: newToken });
+      setToken(newToken);
+      setShowSettings(false);
+      setError(null);
+    } catch (err) {
+      console.error("Error saving token:", err);
+      setError("Failed to save token");
+    }
+  };
+
+  const fetchSuggestions = async (forceRefresh = false) => {
+    if (!token) {
+      setShowSettings(true);
+      return;
+    }
+
+    try {
       const [tab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
       });
-      const url = new URL(tab.url!);
-      const [, owner, repo, , pullNumber] = url.pathname.split("/");
 
-      // Check cache first
-      const { cachedSuggestions } = await chrome.storage.local.get(
-        "cachedSuggestions"
-      );
-      const cacheKey = `${owner}/${repo}/pull/${pullNumber}`;
-      const cached = cachedSuggestions?.[cacheKey];
-
-      if (cached) {
-        setSuggestions(cached.suggestions);
+      if (!tab.url?.includes("github.com") || !tab.url?.includes("/pull/")) {
+        setError("Please navigate to a GitHub pull request page");
         setLoading(false);
         return;
       }
 
-      const codeDiff = await fetchPullRequestDiff(
-        owner,
-        repo,
-        parseInt(pullNumber),
-        githubToken
-      );
+      const url = new URL(tab.url);
+      const [, owner, repo, , pullNumber] = url.pathname.split("/");
+      const cacheKey = `${owner}/${repo}/pull/${pullNumber}`;
 
-      const response = await fetch("http://localhost:3000/api/suggestions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ codeDiff }),
-      });
+      // Check cache if not forcing refresh
+      if (!forceRefresh) {
+        const { cachedSuggestions = {} } = await chrome.storage.local.get(
+          "cachedSuggestions"
+        );
+        const cached = cachedSuggestions[cacheKey];
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch suggestions");
+        if (cached && cached.timestamp) {
+          const cacheAge = Date.now() - cached.timestamp;
+          if (cacheAge < 5 * 60 * 1000) {
+            setSuggestions(cached.suggestions);
+            setLoading(false);
+            return;
+          }
+        }
       }
 
-      const data = await response.json();
-      setSuggestions(data.suggestions);
+      try {
+        const codeDiff = await fetchPullRequestDiff(
+          owner,
+          repo,
+          parseInt(pullNumber),
+          token
+        );
 
-      // Cache the new suggestions
-      await chrome.storage.local.set({
-        cachedSuggestions: {
-          ...cachedSuggestions,
-          [cacheKey]: {
-            suggestions: data.suggestions,
-            timestamp: Date.now(),
+        // Change this URL to point to your development server
+        const response = await fetch("http://localhost:3000/api/suggestions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        },
-      });
+          body: JSON.stringify({ codeDiff }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch suggestions: ${response.statusText}`
+          );
+        }
+
+        const data = await response.json();
+        setSuggestions(data.suggestions);
+
+        // Cache the new suggestions
+        const { cachedSuggestions = {} } = await chrome.storage.local.get(
+          "cachedSuggestions"
+        );
+        await chrome.storage.local.set({
+          cachedSuggestions: {
+            ...cachedSuggestions,
+            [cacheKey]: {
+              suggestions: data.suggestions,
+              timestamp: Date.now(),
+            },
+          },
+        });
+      } catch (err: any) {
+        if (err.message.includes("404")) {
+          setError(
+            "Pull request not found. Please check if you have access to this repository."
+          );
+          setShowSettings(true);
+        } else if (err.message.includes("401") || err.message.includes("403")) {
+          setError(
+            "Invalid or expired GitHub token. Please update your token."
+          );
+          setShowSettings(true);
+        } else {
+          setError(`Failed to fetch pull request: ${err.message}`);
+        }
+      }
     } catch (err: any) {
       setError(err.message);
       console.error("Error:", err);
@@ -81,28 +152,36 @@ const ExtensionPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchSuggestions();
-  }, []);
+  const handleError = (err: any) => {
+    if (err.message.includes("401") || err.message.includes("403")) {
+      setError("Invalid or expired GitHub token. Please update your token.");
+      setToken(null);
+      setShowSettings(true);
+    } else {
+      setError(err.message);
+    }
+  };
 
-  if (needsToken) {
+  if (showSettings) {
     return (
-      <Settings
-        onTokenSave={() => {
-          setNeedsToken(false);
-          setLoading(true);
-          fetchSuggestions();
-        }}
-      />
+      <div style={{ width: "580px", minWidth: "580px" }}>
+        <Settings
+          onTokenSave={handleTokenSave}
+          onCancel={() => setShowSettings(false)}
+          initialError={error}
+        />
+      </div>
     );
   }
 
   return (
-    <div style={{ width: "380px", height: "100%" }}>
+    <div style={{ width: "580px", minWidth: "580px" }}>
       <SuggestionBox
         suggestions={suggestions}
         loading={loading}
-        error={error || undefined}
+        error={error}
+        onRefresh={() => fetchSuggestions(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
     </div>
   );
