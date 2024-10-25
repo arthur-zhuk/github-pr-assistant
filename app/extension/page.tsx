@@ -28,6 +28,19 @@ const ExtensionPage: React.FC = () => {
       const url = new URL(tab.url!);
       const [, owner, repo, , pullNumber] = url.pathname.split("/");
 
+      // Check cache first
+      const { cachedSuggestions } = await chrome.storage.local.get(
+        "cachedSuggestions"
+      );
+      const cacheKey = `${owner}/${repo}/pull/${pullNumber}`;
+      const cached = cachedSuggestions?.[cacheKey];
+
+      if (cached) {
+        setSuggestions(cached.suggestions);
+        setLoading(false);
+        return;
+      }
+
       const codeDiff = await fetchPullRequestDiff(
         owner,
         repo,
@@ -49,6 +62,17 @@ const ExtensionPage: React.FC = () => {
 
       const data = await response.json();
       setSuggestions(data.suggestions);
+
+      // Cache the new suggestions
+      await chrome.storage.local.set({
+        cachedSuggestions: {
+          ...cachedSuggestions,
+          [cacheKey]: {
+            suggestions: data.suggestions,
+            timestamp: Date.now(),
+          },
+        },
+      });
     } catch (err: any) {
       setError(err.message);
       console.error("Error:", err);
