@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import SuggestionBox from "../../components/SuggestionBox";
+import Settings from "../../components/Settings";
 import { fetchPullRequestDiff } from "../../githubService";
-import Settings from "./settings";
 
 const ExtensionPage: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -11,6 +11,7 @@ const ExtensionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(null);
+  const [currentPrUrl, setCurrentPrUrl] = useState<string | null>(null);
 
   // Load token on mount
   useEffect(() => {
@@ -25,11 +26,59 @@ const ExtensionPage: React.FC = () => {
     loadToken();
   }, []);
 
+  // Add new state to track current PR URL
+  // Modify the load cached suggestions effect to handle PR changes
+  useEffect(() => {
+    const loadCachedSuggestions = async () => {
+      if (!token) return;
+
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (!tab.url?.includes("github.com") || !tab.url?.includes("/pull/")) {
+        setSuggestions([]);
+        setCurrentPrUrl(null);
+        return;
+      }
+
+      // If we've changed PRs, clear the suggestions and trigger a fetch
+      if (currentPrUrl && currentPrUrl !== tab.url) {
+        setSuggestions([]);
+        setCurrentPrUrl(tab.url);
+        // Trigger fetch for new PR
+        fetchSuggestions(false);
+        return;
+      }
+
+      setCurrentPrUrl(tab.url);
+
+      const url = new URL(tab.url);
+      const [, owner, repo, , pullNumber] = url.pathname.split("/");
+      const cacheKey = `${owner}/${repo}/pull/${pullNumber}`;
+
+      const { cachedSuggestions = {} } = await chrome.storage.local.get(
+        "cachedSuggestions"
+      );
+      const cached = cachedSuggestions[cacheKey];
+
+      if (cached && cached.suggestions) {
+        setSuggestions(cached.suggestions);
+      } else {
+        // If no cache exists, trigger a fetch
+        fetchSuggestions(false);
+      }
+    };
+
+    loadCachedSuggestions();
+  }, [token, currentPrUrl]); // Add fetchSuggestions to dependencies if needed
+
   // Only fetch suggestions when we have a token
   useEffect(() => {
     if (token) {
-      setLoading(true);
-      fetchSuggestions();
+      // Don't set loading here anymore
+      // Just handle token initialization if needed
     }
   }, [token]);
 
@@ -57,6 +106,7 @@ const ExtensionPage: React.FC = () => {
       return;
     }
 
+    setLoading(true); // Set loading state at the start
     try {
       const [tab] = await chrome.tabs.query({
         active: true,
@@ -65,7 +115,6 @@ const ExtensionPage: React.FC = () => {
 
       if (!tab.url?.includes("github.com") || !tab.url?.includes("/pull/")) {
         setError("Please navigate to a GitHub pull request page");
-        setLoading(false);
         return;
       }
 
@@ -84,7 +133,6 @@ const ExtensionPage: React.FC = () => {
           const cacheAge = Date.now() - cached.timestamp;
           if (cacheAge < 5 * 60 * 1000) {
             setSuggestions(cached.suggestions);
-            setLoading(false);
             return;
           }
         }
@@ -148,7 +196,7 @@ const ExtensionPage: React.FC = () => {
       setError(err.message);
       console.error("Error:", err);
     } finally {
-      setLoading(false);
+      setLoading(false); // Always reset loading state
     }
   };
 
