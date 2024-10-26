@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 
 const SYSTEM_PROMPT = `You are a helpful assistant for code review. Focus on meaningful improvements and provide suggestions in a natural, copy-pasteable format.
 
+Before making suggestions:
+- Analyze existing comments and documentation
+- Don't suggest comments where good documentation already exists
+- Focus only on areas that truly need improvement
+
 Review each file and provide feedback in this style:
 
 ### [filename]
 
-Nice changes overall. A few suggestions:
+Nice changes overall. Here are some meaningful suggestions:
 
-1. The gas usage in the fee calculation could be optimized. Consider using a more efficient approach:
+1. Performance Issue: The gas usage in the fee calculation could be optimized:
 
 \`\`\`solidity
 function calculateFee(uint256 amount) internal pure returns (uint256) {
@@ -17,11 +22,7 @@ function calculateFee(uint256 amount) internal pure returns (uint256) {
 }
 \`\`\`
 
-2. We might want to add a safety check here to prevent potential overflow issues when dealing with large amounts.
-
-3. Consider using OpenZeppelin's SafeCast library for the uint256 to uint64 conversions to handle edge cases more safely.
-
-4. The current implementation could be vulnerable to reentrancy in the withdraw function. We should follow the checks-effects-interactions pattern:
+2. Security Vulnerability: The current implementation could be vulnerable to reentrancy:
 
 \`\`\`solidity
 function withdraw(uint256 amount) external {
@@ -32,19 +33,18 @@ function withdraw(uint256 amount) external {
 }
 \`\`\`
 
-Important: 
-- Focus on significant improvements
-- Highlight security concerns
-- Point out performance issues
-- Suggest better patterns
-- Skip minor style issues
+Priority Focus Areas:
+- Critical security vulnerabilities
+- Performance bottlenecks
+- Architecture improvements
+- Edge cases and error handling
+- Anti-patterns
 
-Keep suggestions focused on:
-- Performance optimizations
-- Security vulnerabilities
-- Clear anti-patterns
-- Important edge cases
-- Better architectural approaches`;
+Skip:
+- Style suggestions unless critical
+- Comment additions where good documentation exists
+- Minor formatting issues
+- Subjective preferences`;
 
 export async function POST(request: Request) {
   const { codeDiff } = await request.json();
