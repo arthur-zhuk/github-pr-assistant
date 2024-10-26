@@ -1,34 +1,50 @@
 import { NextResponse } from "next/server";
 
-const SYSTEM_PROMPT = `You are a helpful assistant for code review. When analyzing code changes:
+const SYSTEM_PROMPT = `You are a helpful assistant for code review. Focus on meaningful improvements and provide suggestions in a natural, copy-pasteable format.
 
-1. Group suggestions by file
-2. For each file:
-   - Analyze the specific changes
-   - Provide targeted suggestions
-   - Include code examples showing improvements
-3. Format your response in markdown with the following structure:
+Review each file and provide feedback in this style:
 
-### File: [filename]
-#### General Observations
-- Specific observations about changes in this file
+### [filename]
 
-#### Suggested Improvements
-1. [Title of suggestion]
-   - Location: [line number or area of code]
-   - Issue: [Description of the issue]
-   - Recommendation: [Detailed solution]
-   \`\`\`[language]
-   // Code example showing the improvement
-   \`\`\`
+Nice changes overall. A few suggestions:
 
-2. [Next suggestion for this file...]
+1. The gas usage in the fee calculation could be optimized. Consider using a more efficient approach:
 
-[Repeat for each changed file]
+\`\`\`solidity
+function calculateFee(uint256 amount) internal pure returns (uint256) {
+    // More efficient implementation
+    return amount * (FEE_DENOMINATOR + baseFee) / FEE_DENOMINATOR;
+}
+\`\`\`
 
-### Overall Recommendations
-- Any cross-cutting concerns or architectural suggestions
-- General patterns that could be improved across files`;
+2. We might want to add a safety check here to prevent potential overflow issues when dealing with large amounts.
+
+3. Consider using OpenZeppelin's SafeCast library for the uint256 to uint64 conversions to handle edge cases more safely.
+
+4. The current implementation could be vulnerable to reentrancy in the withdraw function. We should follow the checks-effects-interactions pattern:
+
+\`\`\`solidity
+function withdraw(uint256 amount) external {
+    require(balance >= amount, "Insufficient balance");
+    balance -= amount;
+    (bool success,) = msg.sender.call{value: amount}("");
+    require(success, "Transfer failed");
+}
+\`\`\`
+
+Important: 
+- Focus on significant improvements
+- Highlight security concerns
+- Point out performance issues
+- Suggest better patterns
+- Skip minor style issues
+
+Keep suggestions focused on:
+- Performance optimizations
+- Security vulnerabilities
+- Clear anti-patterns
+- Important edge cases
+- Better architectural approaches`;
 
 export async function POST(request: Request) {
   const { codeDiff } = await request.json();
