@@ -16,6 +16,7 @@ const Settings: React.FC<SettingsProps> = ({
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(initialError || "");
+  const [validating, setValidating] = useState(false);
 
   const handleSave = async () => {
     if (!token.trim()) {
@@ -24,13 +25,27 @@ const Settings: React.FC<SettingsProps> = ({
     }
 
     setSaving(true);
+    setValidating(true);
+    
     try {
+      // Validate the token before saving
+      const isValid = await validateGitHubToken(token);
+      
+      if (!isValid) {
+        setError("Invalid GitHub token. Please check and try again.");
+        setSaving(false);
+        setValidating(false);
+        return;
+      }
+      
+      // Token is valid, proceed with saving
       onTokenSave(token);
     } catch (err) {
-      setError("Failed to save token");
+      setError("Failed to validate or save token");
       console.error(err);
     } finally {
       setSaving(false);
+      setValidating(false);
     }
   };
 
@@ -180,7 +195,7 @@ const Settings: React.FC<SettingsProps> = ({
             opacity: saving || !token ? 0.7 : 1,
           }}
         >
-          {saving ? "Saving..." : "Save Token"}
+          {validating ? "Validating..." : saving ? "Saving..." : "Save Token"}
         </button>
       </div>
     </div>
