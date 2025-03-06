@@ -25,14 +25,48 @@ const Settings: React.FC<SettingsProps> = ({
 
     setSaving(true);
     try {
-      onTokenSave(token);
+      // Basic validation only
+      if (token.length < 30) {
+        setError("Token appears to be too short - GitHub tokens are typically longer");
+        return;
+      }
+      
+      // Skip network validation and just pass the token to the parent
+      onTokenSave(token.trim());
     } catch (err) {
-      setError("Failed to save token");
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to save token";
+      setError(errorMessage);
+      console.error("Error in Settings component:", err);
     } finally {
       setSaving(false);
     }
   };
+
+  // Error message component for better UI
+  const ErrorMessage = ({ message }: { message: string }) => (
+    <div
+      style={{
+        color: "#cf222e",
+        padding: "8px 12px",
+        backgroundColor: "#ffebe9",
+        borderRadius: "6px",
+        fontSize: "14px",
+        display: "flex",
+        alignItems: "center",
+        marginBottom: "8px",
+      }}
+    >
+      <span
+        style={{
+          marginRight: "8px",
+          fontWeight: "bold",
+        }}
+      >
+        ⚠️
+      </span>
+      {message}
+    </div>
+  );
 
   return (
     <div
@@ -50,7 +84,7 @@ const Settings: React.FC<SettingsProps> = ({
           alignItems: "center",
         }}
       >
-        <h2 style={{ margin: 0 }}>GitHub Settings</h2>
+        <h2 style={{ margin: 0 }}>GitHub Authentication Options</h2>
         <button
           onClick={onCancel}
           style={{
@@ -65,19 +99,7 @@ const Settings: React.FC<SettingsProps> = ({
         </button>
       </div>
 
-      {initialError && (
-        <div
-          style={{
-            color: "#cf222e",
-            padding: "8px",
-            backgroundColor: "#ffebe9",
-            borderRadius: "6px",
-            fontSize: "14px",
-          }}
-        >
-          {initialError}
-        </div>
-      )}
+      {initialError && <ErrorMessage message={initialError} />}
 
       <div
         style={{
@@ -143,9 +165,7 @@ const Settings: React.FC<SettingsProps> = ({
         </small>
       </div>
 
-      {error && !initialError && (
-        <div style={{ color: "#cf222e" }}>{error}</div>
-      )}
+      {error && !initialError && <ErrorMessage message={error} />}
 
       <div
         style={{
