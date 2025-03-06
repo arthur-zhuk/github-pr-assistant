@@ -34,6 +34,36 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  // Loading spinner component
+  const LoadingSpinner = () => (
+    <div
+      style={{
+        display: "inline-block",
+        width: "16px",
+        height: "16px",
+        border: "2px solid rgba(255, 255, 255, 0.3)",
+        borderRadius: "50%",
+        borderTopColor: "#ffffff",
+        animation: "spin 1s ease-in-out infinite",
+        marginRight: "8px",
+      }}
+    />
+  );
+
+  // Add keyframes for the spinner animation
+  React.useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
     <div
       style={{
@@ -178,9 +208,18 @@ const Settings: React.FC<SettingsProps> = ({
             color: "#ffffff",
             cursor: saving || !token ? "not-allowed" : "pointer",
             opacity: saving || !token ? 0.7 : 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          {saving ? "Saving..." : "Save Token"}
+          {saving ? (
+            <>
+              <LoadingSpinner /> Saving...
+            </>
+          ) : (
+            "Save Token"
+          )}
         </button>
       </div>
     </div>
