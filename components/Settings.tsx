@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { chrome } from "chrome-extension-options";
-import { validateGitHubToken } from "@/githubService";
 
 interface SettingsProps {
   onTokenSave: (token: string) => void;
@@ -25,10 +23,17 @@ const Settings: React.FC<SettingsProps> = ({
 
     setSaving(true);
     try {
-      onTokenSave(token);
+      // Basic validation only
+      if (token.length < 30) {
+        setError("Token appears to be too short - GitHub tokens are typically longer");
+        return;
+      }
+      
+      // Skip network validation and just pass the token to the parent
+      onTokenSave(token.trim());
     } catch (err) {
-      setError("Failed to save token");
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to save token");
+      console.error("Error in Settings component:", err);
     } finally {
       setSaving(false);
     }
@@ -50,7 +55,7 @@ const Settings: React.FC<SettingsProps> = ({
           alignItems: "center",
         }}
       >
-        <h2 style={{ margin: 0 }}>GitHub Settings</h2>
+        <h2 style={{ margin: 0 }}>GitHub Authentication Options</h2>
         <button
           onClick={onCancel}
           style={{
